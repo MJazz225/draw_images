@@ -1,0 +1,62 @@
+###########################
+#
+#         計算PNL然後畫圖
+#
+#         要改的輸入rawdata的檔案就好, BO查詢的時候一次過查全部帳號
+#         下載的excel要轉成csv
+#
+############################
+rm(list=ls())
+setwd("D:\\Users\\marshaw.tan\\Downloads")
+if(!require(dplyr))install.packages("dpylr")
+rawdata <- read.csv("marshaw.tan_交易报表_20230418104032.csv", sep = ",", stringsAsFactors = F, encoding = "UTF-8") #改這裡的檔案
+#rawdata <- read.table("marshaw.tan_交易报表_20221213215203.xlsx", sep = ",", stringsAsFactors = F) 有bug不需要
+columnnames <- c("ID", "CFD", "DEAL PRICE", "DEAL LOT", "DEAL TIME", "TAKE PROFIT", "STOP LOSS", "COMMISION", "INTEREST", "PROFIT", "OPEN PRICE",
+                 "OPEN VOLUME", "OPEN TIME")
+
+
+n <- nrow(rawdata)-1 ##去掉最後的total
+data <- rawdata[2:n,]
+
+
+##抓重要欄位
+data1 <- data[,c(2,5,17,18,21,23,24,27,28,29,34,35,36)] %>% as.data.frame() #欄位可能會變動
+colnames(data1) <- columnnames
+
+
+## count sum
+profit <- NULL
+for (i in 1:nrow(data1)) {
+  tem <- as.numeric(data1[i,8])+as.numeric(data1[i,9])+as.numeric(data1[i,10])
+  profit <- rbind(profit, tem)
+}
+
+SUM <- profit
+rm(profit)
+
+data2 <- cbind(data1[,c(1:10)],SUM,data1[,c(11:13)])
+ids <- data2[,1]
+ids <- ids[!duplicated(ids)] %>% sort()
+
+library(tidyverse) ##導入ggplot
+
+data_list <- split(data2, f = data2$ID)
+setwd("D:\\Users\\marshaw.tan\\Desktop\\Screenshot")
+
+
+for (i in 1:length(data_list)) {
+  tem <- data_list[[i]]
+  #save the plot
+  last_profit <- cumsum(tem$SUM)
+  last_profit <- last_profit[length(last_profit)]
+  png(filename = paste0(ids[i], ".jpg"),width = 2400,height = 1800,res = 200)
+  plot(1:nrow(tem), cumsum(tem$SUM), type = "l", xlab = paste(ids[i],"三個月交易次數"), ylab = "盈利", lwd = 4)
+  abline(h=0, col = "grey", lty =1)
+  legend("topright", legend = paste("盈利:", last_profit))
+  dev.off()
+}
+
+##############################################
+
+
+
